@@ -1,0 +1,66 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    depends_on: [ app ]
+    ports: [ "80:80" ]
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+
+  prometheus:
+    build:
+      context: ./prometheus
+      dockerfile: Dockerfile
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - '9090:9090'
+    restart: always
+    networks:
+      - monitoring-net
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "7070:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    restart: unless-stopped
+    networks:
+      - monitoring-net
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    restart: always
+    ports:
+      - '3000:3000'
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - monitoring-net
+
+volumes:
+  grafana-data:
+
+networks:
+  monitoring-net:
+    driver: bridge

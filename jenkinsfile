@@ -1,0 +1,40 @@
+pipeline {
+  agent any
+  options {
+    skipDefaultCheckout(true)
+    timestamps()
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        deleteDir()
+        checkout scm
+      }
+    }
+
+    stage('Build') {
+      steps {
+        sh 'docker compose -f configuration/docker-compose.yml build --no-cache'
+      }
+    }
+
+    stage('Test') {
+      steps {
+        sh 'docker compose -f configuration/docker-compose.yml run --rm app pytest'
+      }
+    }
+
+    stage('Deploy') {
+      when { expression { return env.BRANCH_NAME == null || env.BRANCH_NAME == 'main' } }
+      steps {
+        sh 'docker compose -f configuration/docker-compose.yml up -d'
+      }
+    }
+  }
+
+  post {
+    success { echo 'Pipeline OK' }
+    failure { echo 'Pipeline fallita' }
+  }
+}
